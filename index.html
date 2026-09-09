@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Compare a trafficking sheet with a TikTok Ads export and download a discrepancy report.">
+  <title>TikTok QAer</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="script.js" defer></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --tiktok-cyan: #00f2fe;
+      --tiktok-red: #ff0050;
+      --white: #ffffff;
+      --muted: #a3b8cc;
+      --panel: rgba(6, 12, 24, 0.72);
+      --line: rgba(255, 255, 255, 0.18);
+      --danger-bg: rgba(255, 0, 80, 0.14);
+      --danger-line: rgba(255, 0, 80, 0.45);
+      --danger: #ff8aa6;
+      --success: #00d26a;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { min-height: 100%; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background: 
+        radial-gradient(circle at 82% 18%, rgba(255, 0, 80, 0.32) 0%, transparent 45%),
+        radial-gradient(circle at 18% 82%, rgba(0, 242, 254, 0.28) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.6) 0%, transparent 100%),
+        linear-gradient(135deg, #02040a 0%, #0a101d 50%, #12182b 100%);
+      background-attachment: fixed;
+      color: var(--white);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input { font: inherit; }
+
+    button:focus-visible,
+    label:focus-within,
+    summary:focus-visible {
+      outline: 3px solid rgba(0, 242, 254, 0.85);
+      outline-offset: 4px;
+    }
+
+    .app-shell {
+      width: min(1080px, calc(100% - 40px));
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 16px 0 48px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-top: clamp(28px, 6vh, 58px);
+      margin-bottom: 28px;
+      min-height: 52px;
+    }
+
+    .brand-logo {
+      display: block;
+      width: 40px;
+      height: 46px;
+      overflow: visible;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      font-weight: 850;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* "TikTok" in solid pure white */
+    .brand-title-main {
+      color: #ffffff;
+      font-weight: 850;
+    }
+
+    /* "QAer" in cyan-to-red gradient */
+    .brand-title-accent {
+      background: linear-gradient(90deg, var(--tiktok-cyan) 0%, var(--tiktok-red) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 10px rgba(0, 242, 254, 0.25));
+      font-weight: 850;
+    }
+
+    main { position: relative; }
+
+    .view {
+      width: 100%;
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 320ms ease, transform 320ms ease;
+    }
+
+    .view[hidden] { display: none; }
+
+    .view.is-leaving {
+      opacity: 0;
+      transform: translateY(-12px);
+    }
+
+    .view.is-entering {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+
+    .main-view {
+      display: grid;
+      place-items: center;
+      min-height: calc(100vh - 210px);
+      padding: 12px 0 60px;
+    }
+
+    .upload-stage {
+      width: min(780px, 100%);
+      text-align: center;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+      align-items: start;
+      gap: 18px;
+    }
+
+    .upload-slot {
+      position: relative;
+      min-width: 0;
+    }
+
+    .file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .upload-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 74px;
+      padding: 16px 20px;
+      border: 1.5px solid currentColor;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
+      font-size: 1rem;
+      font-weight: 720;
+      cursor: pointer;
+      transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    .upload-button:hover {
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 28px color-mix(in srgb, currentColor 28%, transparent);
+      transform: translateY(-2px);
+    }
+
+    .upload-button.traffic { color: var(--tiktok-cyan); }
+    .upload-button.tiktok { color: var(--tiktok-red); }
+
+    .upload-button span { color: var(--white); }
+
+    .file-name {
+      display: block;
+      min-height: 36px;
+      margin: 11px 4px 0;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-name.has-file {
+      color: #00f2fe;
+      font-weight: 600;
+    }
+
+    .versus {
+      display: grid;
+      place-items: center;
+      min-height: 74px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .analyze-wrap {
+      display: inline-block;
+      margin-top: 36px;
+      padding: 1.5px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, var(--tiktok-cyan), var(--tiktok-red));
+      box-shadow: 0 10px 36px rgba(255, 0, 80, 0.35);
+    }
+
+    .analyze-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-width: 195px;
+      min-height: 52px;
+      padding: 12px 28px;
+      border: 0;
+      border-radius: 9px;
+      background: #080d18;
+      color: var(--white);
+      font-weight: 780;
+      cursor: pointer;
+      transition: background 180ms ease, transform 180ms ease;
+    }
+
+    .analyze-button:hover:not(:disabled) {
+      background: #0f1728;
+      transform: translateY(-1px);
+    }
+
+    .analyze-button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+    .progress-region {
+      width: min(460px, 90%);
+      margin: 30px auto 0;
+      opacity: 1;
+      transition: opacity 200ms ease;
+    }
+
+    .progress-region[hidden] { display: none; }
+
+    .progress-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      margin-bottom: 11px;
+      color: #d6e3f0;
+      font-size: 0.88rem;
+    }
+
+    .spinner {
+      width: 15px;
+      height: 15px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: var(--tiktok-cyan);
+      border-radius: 50%;
+      animation: spin 720ms linear infinite;
+    }
+
+    .progress-track {
+      height: 7px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .progress-fill {
+      width: 34%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--tiktok-cyan), var(--tiktok-red));
+      animation: progress 1.25s ease-in-out infinite;
+    }
+
+    /* Results View Styling with Smaller Fonts & Score Circle Widget */
+    .results-view { padding: 24px 0 28px; }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .results-header-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    /* Circular Score Badge Widget */
+    .score-circle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 82px;
+      height: 82px;
+      flex: 0 0 82px;
+      border-radius: 50%;
+      background: rgba(8, 14, 26, 0.88);
+      border: 3.5px solid var(--tiktok-cyan);
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.25);
+      transition: all 300ms ease;
+      text-align: center;
+      padding: 4px;
+    }
+
+    .score-circle.is-100 {
+      border-color: #00d26a;
+      box-shadow: 0 0 22px rgba(0, 210, 106, 0.35);
+    }
+
+    .score-circle.is-100 .score-icon {
+      color: #00d26a;
+    }
+
+    .score-circle.is-lower {
+      border-color: var(--tiktok-red);
+      box-shadow: 0 0 22px rgba(255, 0, 80, 0.35);
+    }
+
+    .score-circle.is-lower .score-icon {
+      color: var(--tiktok-red);
+    }
+
+    .score-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .score-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2.8;
+    }
+
+    .score-value {
+      font-size: 0.92rem;
+      font-weight: 850;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .score-label {
+      font-size: 0.52rem;
+      font-weight: 750;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* Smaller Title & Subtitle */
+    .results-title {
+      margin: 0;
+      font-size: clamp(1.4rem, 3.5vw, 2.2rem);
+      font-weight: 850;
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+    }
+
+    .results-subtitle {
+      max-width: 420px;
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+
+    .summary-stats {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 16px;
+      margin: 0;
+    }
+
+    .stat { min-width: 58px; text-align: right; }
+
+    .stat-value {
+      display: block;
+      font-size: 1.15rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .stat-label {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+    }
+
+    .notice {
+      margin: 16px 0 0;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 199, 78, 0.3);
+      border-radius: 6px;
+      background: rgba(255, 183, 41, 0.09);
+      color: #ffe0a2;
+      font-size: 0.76rem;
+      line-height: 1.4;
+    }
+
+    .notice[hidden] { display: none; }
+
+    .results-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .campaign-group,
+    .adgroup-group,
+    .ad-group {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+    }
+
+    .adgroup-group,
+    .ad-group { background: rgba(255, 255, 255, 0.03); }
+
+    details > summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      padding: 9px 13px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    details > summary::-webkit-details-marker { display: none; }
+
+    details > summary::before {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 7px;
+      border-right: 1.5px solid var(--muted);
+      border-bottom: 1.5px solid var(--muted);
+      content: "";
+      transform: rotate(-45deg);
+      transition: transform 160ms ease;
+    }
+
+    details[open] > summary::before { transform: rotate(45deg); }
+
+    .summary-name {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .summary-count {
+      flex: 0 0 auto;
+      margin-left: auto;
+      color: var(--danger);
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .group-body {
+      display: grid;
+      gap: 8px;
+      padding: 0 12px 12px 30px;
+    }
+
+    .adgroup-group .group-body { padding-left: 28px; }
+
+    .ad-group { border-color: var(--danger-line); }
+
+    .mismatch-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0 12px 12px 28px;
+      list-style: none;
+    }
+
+    .mismatch-item {
+      display: grid;
+      grid-template-columns: minmax(115px, 0.65fr) minmax(0, 1fr) 20px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      border-left: 3px solid var(--tiktok-red);
+      background: var(--danger-bg);
+      font-size: 0.75rem;
+    }
+
+    .mismatch-field { color: #ffd6dc; font-weight: 750; font-size: 0.75rem; }
+
+    .value-block { min-width: 0; }
+
+    .value-source {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 0.6rem;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .value-text {
+      display: block;
+      font-size: 0.75rem;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .value-arrow { color: rgba(255, 255, 255, 0.45); font-size: 0.75rem; }
+
+    .empty-state {
+      padding: 52px 20px;
+      border-top: 1px solid var(--line);
+      text-align: center;
+    }
+
+    .empty-state svg { color: var(--success); }
+
+    .empty-state h2 { margin: 12px 0 5px; font-size: 1.1rem; }
+    .empty-state p { margin: 0; color: var(--muted); font-size: 0.78rem; }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.88);
+      border-radius: 7px;
+      background: transparent;
+      color: var(--white);
+      font-size: 0.8rem;
+      font-weight: 750;
+      cursor: pointer;
+      transition: background 180ms ease, opacity 180ms ease, transform 180ms ease;
+    }
+
+    .action-button:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.09);
+      transform: translateY(-1px);
+    }
+
+    .action-button:disabled { cursor: not-allowed; opacity: 0.35; }
+
+    .restart-button {
+      min-height: 34px;
+      padding: 6px 12px;
+      border-color: rgba(255, 255, 255, 0.4);
+      opacity: 0.72;
+      font-size: 0.76rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes progress {
+      0% { transform: translateX(-120%); }
+      60%, 100% { transform: translateX(300%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .app-shell { width: min(100% - 28px, 1080px); }
+      .brand { margin-top: 20px; }
+      .upload-grid { grid-template-columns: 1fr; gap: 8px; }
+      .versus { min-height: 30px; }
+      .file-name { min-height: 22px; }
+      .results-view { padding-top: 20px; }
+      .results-header { align-items: flex-start; flex-direction: column; }
+      .results-header-left { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .summary-stats { justify-content: flex-start; }
+      .stat { text-align: left; }
+      .group-body, .adgroup-group .group-body { padding-left: 12px; }
+      .mismatch-list { padding-left: 12px; }
+      .mismatch-item { grid-template-columns: 1fr; gap: 8px; }
+      .value-arrow { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="brand" aria-label="TikTok QAer">
+      <svg class="brand-logo" viewBox="-20 -20 488 552" aria-hidden="true">
+        <path fill="#00f2fe" d="M448 209.91a210.06 210.06 0 0 1-122.77-39.25V349.38A162.55 162.55 0 1 1 185 188.31V258.2a92.27 92.27 0 1 0 58.33 86.29V0h69.27a140.7 140.7 0 0 0 2.22 25.33 140.81 140.81 0 0 0 131.18 115.31V209.91z"/>
+        <path fill="#ff0050" d="M325.23 170.66a140.81 140.81 0 0 1-131.18-115.31A140.7 140.7 0 0 1 191.83 30H122.56v344.59A92.27 92.27 0 1 1 64.23 288.3v-69.89a162.55 162.55 0 1 0 178.1 161.42V170.66z" opacity="0.9"/>
+      </svg>
+      <h1 class="brand-title">
+        <span class="brand-title-main">TikTok</span>
+        <span class="brand-title-accent">QAer</span>
+      </h1>
+    </header>
+
+    <main>
+      <section id="mainView" class="view main-view" aria-labelledby="mainHeading">
+        <div class="upload-stage">
+          <h2 id="mainHeading" hidden>Upload spreadsheets for TikTok comparison</h2>
+          <div class="upload-grid">
+            
+            <div class="upload-slot">
+              <input class="file-input" id="trafficFile" type="file" accept=".xlsx,.xls,.xlsm,.csv" aria-describedby="trafficFileName">
+              <label class="upload-button traffic" for="trafficFile">
+                <i data-lucide="sheet" aria-hidden="true"></i>
+                <span>Trafficking Sheet</span>
+              </label>
+              <span class="file-name" id="trafficFileName">No file selected</span>
+            </div>
+
+            <div class="versus" aria-hidden="true">vs</div>
+
+            <div class="upload-slot">
+              <input class="file-input" id="tiktokFile" type="file" accept=".xlsx,.xls,.xlsm,.csv" aria-describedby="tiktokFileName">
+              <label class="upload-button tiktok" for="tiktokFile">
+                <i data-lucide="file-spreadsheet" aria-hidden="true"></i>
+                <span>Exported TikTok Sheet</span>
+              </label>
+              <span class="file-name" id="tiktokFileName">No file selected</span>
+            </div>
+
+          </div>
+
+          <div class="analyze-wrap">
+            <button id="analyzeButton" class="analyze-button" type="button">
+              <i data-lucide="scan-search" aria-hidden="true"></i>
+              Analyze
+            </button>
+          </div>
+
+          <div id="progressRegion" class="progress-region" role="status" aria-live="polite" hidden>
+            <div class="progress-label"><span class="spinner" aria-hidden="true"></span>Analyzing TikTok Data...</div>
+            <div class="progress-track" aria-hidden="true"><div class="progress-fill"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="resultsView" class="view results-view" aria-labelledby="resultsHeading" hidden>
+        <div class="results-header">
+          <div class="results-header-left">
+            <!-- Circular Score Badge -->
+            <div class="score-circle" id="scoreCircle">
+              <div class="score-icon" id="scoreIcon">
+                <i data-lucide="check-circle-2" aria-hidden="true"></i>
+              </div>
+              <div class="score-value" id="scoreValue">100%</div>
+              <div class="score-label" id="scoreLabel">Correct</div>
+            </div>
+
+            <div>
+              <h2 id="resultsHeading" class="results-title">RESULTS</h2>
+              <p id="resultsSubtitle" class="results-subtitle"></p>
+            </div>
+          </div>
+
+          <div class="summary-stats" aria-label="Analysis summary">
+            <div class="stat"><span id="adsChecked" class="stat-value">0</span><span class="stat-label">Ads checked</span></div>
+            <div class="stat"><span id="adsFlagged" class="stat-value">0</span><span class="stat-label">Ads flagged</span></div>
+            <div class="stat"><span id="issueCount" class="stat-value">0</span><span class="stat-label">Issues</span></div>
+          </div>
+        </div>
+
+        <p id="analysisNotice" class="notice" hidden></p>
+        <div id="resultsList" class="results-list"></div>
+
+        <div class="actions">
+          <button id="downloadButton" class="action-button" type="button">
+            <i data-lucide="download" aria-hidden="true"></i>
+            Download
+          </button>
+          <button id="restartButton" class="action-button restart-button" type="button">
+            <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+            Restart
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
