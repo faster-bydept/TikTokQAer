@@ -14,7 +14,7 @@ window.setFileLabel = function (input, label) {
   ]);
   const EMPTY_LABEL = "(blank)";
 
-  // TikTok Header Aliases (Excludes Location, Country, Launch Date, Languages, Locales)
+  // TikTok Header Aliases (Identity Type & Business Center ID EXCLUDED)
   const HEADER_ALIASES = {
     campaign: ["campaign name", "campaign"],
     adGroup: ["ad group name", "adgroup name", "ad group", "ad set name", "adset name", "ad set"],
@@ -27,7 +27,6 @@ window.setFileLabel = function (input, label) {
     imageName: ["image name", "carousel name", "auto ad - image name"],
     text: ["text", "auto ad - text", "body primary text", "primary text", "body copy", "body"],
     cta: ["call to action", "cta", "auto ad - call to action"],
-    // Prioritizes Web URL WITH UTMS INCLUDED *USE FOR TIKTOK* column
     url: [
       "web url ( with utms included *use for tiktok*)",
       "web url with utms included use for tiktok",
@@ -36,9 +35,6 @@ window.setFileLabel = function (input, label) {
       "website url"
     ],
     utm: ["utm for tiktok", "utm for meta", "utm", "url parameters", "tracking parameters"],
-    identityType: ["identity type"],
-    identityId: ["identity id"],
-    businessCenterId: ["business center id of the identity", "business center id"],
     onlyShowAsAd: ["only show as ad"],
     creativeEnhancements: ["creative automatic enhancements", "creative enhancements"],
     adMusicId: ["ad music id", "music id"]
@@ -46,15 +42,12 @@ window.setFileLabel = function (input, label) {
 
   const REQUIRED_HEADER_GROUPS = [HEADER_ALIASES.campaign, HEADER_ALIASES.adGroup, HEADER_ALIASES.ad];
 
-  // TikTok Field Definitions (Excludes Location/Country, Launch Date, and Language)
+  // TikTok Field Definitions
   const FIELD_DEFINITIONS = [
     { id: "campaign", label: "Campaign Name", traffic: ["campaign"], tiktok: ["campaign"], type: "name" },
     { id: "adGroup", label: "Ad Group Name", traffic: ["adGroup"], tiktok: ["adGroup"], type: "name" },
     { id: "ad", label: "Ad Name", traffic: ["ad"], tiktok: ["ad"], type: "name" },
     { id: "status", label: "Build Status / Ad Status", traffic: ["buildStatus"], tiktok: ["tikTokStatus"], type: "statusMapping" },
-    { id: "identityType", label: "Identity Type", traffic: ["identityType"], tiktok: ["identityType"], type: "text" },
-    { id: "identityId", label: "Identity ID", traffic: ["identityId"], tiktok: ["identityId"], type: "text" },
-    { id: "businessCenterId", label: "Business Center ID of Identity", traffic: ["businessCenterId"], tiktok: ["businessCenterId"], type: "text" },
     { id: "onlyShowAsAd", label: "Only Show As Ad", traffic: ["onlyShowAsAd"], tiktok: ["onlyShowAsAd"], type: "offState" },
     { id: "text", label: "Text (Ad Copy)", traffic: ["text"], tiktok: ["text"], type: "adCopyText" },
     { id: "cta", label: "Call to Action", traffic: ["cta"], tiktok: ["cta"], type: "cta" },
@@ -65,29 +58,30 @@ window.setFileLabel = function (input, label) {
   ];
 
   let currentAnalysis = null;
+  let isCompactView = false;
 
-  // Detects if text starts with "Copy of " or "Copy of"
+  function setElementText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(text);
+  }
+
   function hasCopyOf(value) {
     if (value === null || value === undefined) return false;
     return /^(copy\s+of\s+)+/i.test(String(value).trim());
   }
 
-  // Normalizes Ad Name by stripping leading "Copy of " or "Copy of"
   function stripCopyOf(value) {
     if (value === null || value === undefined) return "";
     let text = String(value).trim().replace(/^(copy\s+of\s+)+/i, "");
     return normalizeWhitespace(text).toLowerCase();
   }
 
-  // Normalizes Text (Ad Copy) by stripping square brackets []
   function normalizeAdCopyText(value) {
     if (value === null || value === undefined) return "";
     let text = String(value).replace(/[\[\]]/g, "").trim();
     return normalizeWhitespace(text);
   }
 
-  // Normalization for TikTok creative asset names
-  // Keeps extension (.png, .mp4, .jpg, .mov), strips brackets [], and removes last field after final underscore _
   function normalizeTikTokCreativeFilename(value) {
     if (value === null || value === undefined) return "";
     let text = String(value).replace(/[\[\]]/g, "").trim();
@@ -109,7 +103,6 @@ window.setFileLabel = function (input, label) {
     return (base + ext).trim().toLowerCase();
   }
 
-  // Normalization for Trafficking asset names (keeps extension, strips brackets)
   function normalizeTrafficCreativeFilename(value) {
     if (value === null || value === undefined) return "";
     let text = String(value).replace(/[\[\]]/g, "").trim();
@@ -122,12 +115,10 @@ window.setFileLabel = function (input, label) {
     return clean.trim().toLowerCase();
   }
 
-  // Calculates parameter similarity score to detect Scenario 1 vs Scenario 2
   function keyParameterMatchCount(trafficRecord, tiktokRecord, trafficColumns, tiktokColumns) {
     let matches = 0;
     let total = 0;
 
-    // 1. Text Copy
     const trCopy = normalizeAdCopyText(firstMeaningfulValue(trafficRecord.row, trafficColumns.text || []));
     const tkCopy = normalizeAdCopyText(firstMeaningfulValue(tiktokRecord.row, tiktokColumns.text || []));
     if (trCopy && tkCopy) {
@@ -135,7 +126,6 @@ window.setFileLabel = function (input, label) {
       if (trCopy === tkCopy) matches += 1;
     }
 
-    // 2. Web URL
     const trUrl = normalizeUrl(firstMeaningfulValue(trafficRecord.row, trafficColumns.url || []));
     const tkUrl = normalizeUrl(firstMeaningfulValue(tiktokRecord.row, tiktokColumns.url || []));
     if (trUrl && tkUrl) {
@@ -143,7 +133,6 @@ window.setFileLabel = function (input, label) {
       if (trUrl === tkUrl) matches += 1;
     }
 
-    // 3. Creative Filename
     const trCreative = normalizeTrafficCreativeFilename(firstMeaningfulValue(trafficRecord.row, trafficColumns.creativeFile || []));
     const tkCreative = normalizeTikTokCreativeFilename(firstMeaningfulValue(tiktokRecord.row, tiktokColumns.creativeFile || []));
     if (trCreative && tkCreative) {
@@ -154,7 +143,6 @@ window.setFileLabel = function (input, label) {
     return { matches: matches, total: total };
   }
 
-  // Helper to detect video ads (Ad Music ID is skipped for video ads)
   function isVideoAd(row, tiktokColumns) {
     const vidIndices = tiktokColumns.videoName || [];
     for (let i = 0; i < vidIndices.length; i++) {
@@ -416,13 +404,8 @@ window.setFileLabel = function (input, label) {
     if (type === "offState") return normalizeOffState(trafficValue) === normalizeOffState(tiktokValue);
     if (type === "cta") return normalizeCta(trafficValue) === normalizeCta(tiktokValue);
     if (type === "url") return normalizeUrl(trafficValue) === normalizeUrl(tiktokValue);
-    
-    // Ad Copy Text comparison (strips square brackets [])
-    if (type === "adCopyText") {
-      return normalizeAdCopyText(trafficValue) === normalizeAdCopyText(tiktokValue);
-    }
+    if (type === "adCopyText") return normalizeAdCopyText(trafficValue) === normalizeAdCopyText(tiktokValue);
 
-    // Creative asset name comparison
     if (type === "tiktokCreativeFilename") {
       return normalizeTrafficCreativeFilename(trafficValue) === normalizeTikTokCreativeFilename(tiktokValue);
     }
@@ -443,7 +426,6 @@ window.setFileLabel = function (input, label) {
     return displayValue(firstMeaningfulValue(row, columnMap[key] || []));
   }
 
-  // Splits multiple ad group names in a single trafficking cell
   function splitAdGroups(value) {
     if (value === null || value === undefined) return [EMPTY_LABEL];
     const text = String(value).trim();
@@ -477,12 +459,11 @@ window.setFileLabel = function (input, label) {
     return records;
   }
 
-  // Multi-pass Ad Matching Engine (Strict Ad Group Scope + Two-Scenario "Copy of" Logic)
+  // Multi-pass Ad Matching Engine
   function findBestTikTokMatch(trafficRecord, tiktokRecords, matchedTikTokIndices, trafficColumns, tiktokColumns) {
     const tAdRaw = normalizeWhitespace(trafficRecord.ad).toLowerCase();
     const tAdStripped = stripCopyOf(trafficRecord.ad);
     const tGroup = normalizeKeyPart(trafficRecord.adGroup);
-    const tCamp = normalizeKeyPart(trafficRecord.campaign);
 
     // Pass 1: Exact Ad Name & Exact Ad Group Name
     for (let idx = 0; idx < tiktokRecords.length; idx++) {
@@ -526,7 +507,6 @@ window.setFileLabel = function (input, label) {
       }
     }
 
-    // Strictly isolated - Do NOT cross-match an ad to a completely different Ad Group
     return { match: null, index: -1 };
   }
 
@@ -568,20 +548,17 @@ window.setFileLabel = function (input, label) {
           matchedTikTokIndices.add(matchResult.index);
         }
 
-        // Detect if static or video ad for Ad Music ID check
         const isVideo = isVideoAd(bestMatch.row, tiktokColumns);
 
         resolvedFields.forEach(function (field) {
           if (!field.trafficIndices.length && field.id !== "adGroup" && field.id !== "campaign" && field.id !== "ad") return;
 
-          // Skip Ad Music ID for video ads
           if (field.type === "musicIdConditional" && isVideo) {
             return;
           }
 
           let trafficValue, tiktokValue;
 
-          // Single split record adGroup check
           if (field.id === "adGroup") {
             trafficValue = trafficRecord.adGroup;
             tiktokValue = bestMatch.adGroup || firstMeaningfulValue(bestMatch.row, field.tiktokIndices);
@@ -706,10 +683,11 @@ window.setFileLabel = function (input, label) {
 
   function renderResults(analysis) {
     const resultsList = document.getElementById("resultsList");
-    resultsList.replaceChildren();
+    const resultsView = document.getElementById("resultsView");
+    if (resultsList) resultsList.replaceChildren();
+    
     const issueCount = issueTotal(analysis.flagged);
 
-    // Accurately calculate total evaluated field checks across all ads
     let totalEvaluatedChecks = 0;
     analysis.trafficRecords.forEach(function (record) {
       let bestMatch = null;
@@ -738,46 +716,57 @@ window.setFileLabel = function (input, label) {
     let scorePct = 100;
     if (totalEvaluatedChecks > 0) {
       scorePct = Math.max(0, Math.round(((totalEvaluatedChecks - issueCount) / totalEvaluatedChecks) * 100));
+      if (issueCount > 0 && scorePct >= 100) {
+        scorePct = 99;
+      }
     }
 
-    // Update Circular Score Widget
     const scoreCircle = document.getElementById("scoreCircle");
     const scoreValueEl = document.getElementById("scoreValue");
     const scoreIconEl = document.getElementById("scoreIcon");
     const scoreLabelEl = document.getElementById("scoreLabel");
+    const successStage = document.getElementById("successStage");
+    const resultsControls = document.getElementById("resultsControls");
+    const downloadBtn = document.getElementById("downloadButton");
 
-    if (scoreCircle && scoreValueEl && scoreIconEl) {
-      scoreValueEl.textContent = scorePct + "%";
-      if (scorePct === 100 && issueCount === 0) {
-        scoreCircle.className = "score-circle is-100";
-        scoreIconEl.innerHTML = '<i data-lucide="check-circle-2" aria-hidden="true"></i>';
-        if (scoreLabelEl) scoreLabelEl.textContent = "Correct";
-      } else {
+    if (scorePct === 100 && issueCount === 0) {
+      if (resultsView) resultsView.classList.add("no-issues");
+      if (scoreCircle) scoreCircle.hidden = true;
+      if (resultsControls) resultsControls.hidden = true;
+      if (successStage) successStage.hidden = false;
+      if (downloadBtn) downloadBtn.hidden = true;
+    } else {
+      if (resultsView) resultsView.classList.remove("no-issues");
+      if (successStage) successStage.hidden = true;
+      if (scoreCircle) {
+        scoreCircle.hidden = false;
         scoreCircle.className = "score-circle is-lower";
-        scoreIconEl.innerHTML = '<i data-lucide="x-circle" aria-hidden="true"></i>';
-        if (scoreLabelEl) scoreLabelEl.textContent = "Accuracy";
+        if (scoreValueEl) scoreValueEl.textContent = scorePct + "%";
+        if (scoreIconEl) scoreIconEl.innerHTML = '<i data-lucide="x-circle" aria-hidden="true"></i>';
+        if (scoreLabelEl) scoreLabelEl.textContent = issueCount + (issueCount === 1 ? " ISSUE" : " ISSUES");
       }
+      if (resultsControls) resultsControls.hidden = false;
+      if (downloadBtn) downloadBtn.hidden = false;
     }
 
-    document.getElementById("adsChecked").textContent = String(analysis.trafficRecords.length);
-    document.getElementById("adsFlagged").textContent = String(analysis.flagged.length);
-    document.getElementById("issueCount").textContent = String(issueCount);
-    document.getElementById("resultsSubtitle").textContent = analysis.flagged.length
+    setElementText("adsChecked", analysis.trafficRecords.length);
+    setElementText("adsFlagged", analysis.flagged.length);
+    setElementText("issueCount", issueCount);
+    setElementText("resultsSubtitle", analysis.flagged.length
       ? "Discrepancies are grouped by campaign, ad group, and ad. TikTok values are shown as delivered."
-      : "Every comparable ad-level value matches the TikTok export.";
+      : "Every comparable ad-level value matches the TikTok export.");
 
     const notice = document.getElementById("analysisNotice");
-    const noticeParts = analysis.notices.slice();
-    if (analysis.tiktokOnlyCount) noticeParts.push(analysis.tiktokOnlyCount + " TikTok-only ad" + (analysis.tiktokOnlyCount === 1 ? " was" : "s were") + " found.");
-    notice.hidden = noticeParts.length === 0;
-    notice.textContent = noticeParts.join(" ");
+    if (notice) {
+      const noticeParts = analysis.notices.slice();
+      if (analysis.tiktokOnlyCount) {
+        noticeParts.push(analysis.tiktokOnlyCount + " TikTok-only ad" + (analysis.tiktokOnlyCount === 1 ? " was" : "s were") + " found.");
+      }
+      notice.hidden = noticeParts.length === 0;
+      notice.textContent = noticeParts.join(" ");
+    }
 
-    if (!analysis.flagged.length) {
-      const empty = el("div", "empty-state");
-      empty.appendChild(el("h2", "", "No discrepancies detected"));
-      empty.appendChild(el("p", "", "The compared records passed all TikTok QA checks."));
-      resultsList.appendChild(empty);
-    } else {
+    if (analysis.flagged.length > 0) {
       const campaigns = groupFlaggedRows(analysis.flagged);
       campaigns.forEach(function (adGroups, campaignName) {
         const campaignItems = Array.from(adGroups.values()).reduce(function (items, rows) { return items.concat(rows); }, []);
@@ -801,8 +790,32 @@ window.setFileLabel = function (input, label) {
         });
 
         campaignGroup.appendChild(campaignBody);
-        resultsList.appendChild(campaignGroup);
+        if (resultsList) resultsList.appendChild(campaignGroup);
       });
+    }
+
+    if (window.lucide && typeof window.lucide.createIcons === "function") {
+      try { window.lucide.createIcons(); } catch (e) {}
+    }
+  }
+
+  function toggleDetailsView() {
+    const resultsList = document.getElementById("resultsList");
+    const toggleBtnText = document.getElementById("toggleDetailsText");
+    const toggleBtnIcon = document.querySelector("#toggleDetailsBtn i");
+
+    isCompactView = !isCompactView;
+
+    if (resultsList) {
+      if (isCompactView) {
+        resultsList.classList.add("compact-mode");
+        if (toggleBtnText) toggleBtnText.textContent = "Expand";
+        if (toggleBtnIcon) toggleBtnIcon.setAttribute("data-lucide", "maximize-2");
+      } else {
+        resultsList.classList.remove("compact-mode");
+        if (toggleBtnText) toggleBtnText.textContent = "Compact";
+        if (toggleBtnIcon) toggleBtnIcon.setAttribute("data-lucide", "minimize-2");
+      }
     }
 
     if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -911,6 +924,15 @@ window.setFileLabel = function (input, label) {
     }, 320);
   }
 
+  function bindFileInput(input, label) {
+    if (!input || !label) return;
+    ["change", "input"].forEach(function (eventType) {
+      input.addEventListener(eventType, function () {
+        window.setFileLabel(input, label);
+      });
+    });
+  }
+
   function restart() {
     const mainView = document.getElementById("mainView");
     const resultsView = document.getElementById("resultsView");
@@ -920,15 +942,27 @@ window.setFileLabel = function (input, label) {
     const trafficLabel = document.getElementById("trafficFileName");
     const tiktokLabel = document.getElementById("tiktokFileName");
     
-    if (trafficInput) trafficInput.value = "";
-    if (tiktokInput) tiktokInput.value = "";
+    if (trafficInput) {
+      trafficInput.value = "";
+      window.setFileLabel(trafficInput, trafficLabel);
+    }
+    if (tiktokInput) {
+      tiktokInput.value = "";
+      window.setFileLabel(tiktokInput, tiktokLabel);
+    }
     
-    window.setFileLabel(trafficInput, trafficLabel);
-    window.setFileLabel(tiktokInput, tiktokLabel);
-    
-    document.getElementById("progressRegion").hidden = true;
-    document.getElementById("analyzeButton").disabled = false;
+    const progress = document.getElementById("progressRegion");
+    if (progress) progress.hidden = true;
+
+    const analyzeBtn = document.getElementById("analyzeButton");
+    if (analyzeBtn) analyzeBtn.disabled = false;
+
     currentAnalysis = null;
+    isCompactView = false;
+
+    const resultsList = document.getElementById("resultsList");
+    if (resultsList) resultsList.classList.remove("compact-mode");
+
     switchView(resultsView, mainView);
   }
 
@@ -937,16 +971,16 @@ window.setFileLabel = function (input, label) {
     const tiktokInput = document.getElementById("tiktokFile");
     const analyzeButton = document.getElementById("analyzeButton");
     const progress = document.getElementById("progressRegion");
-    const trafficFile = trafficInput.files && trafficInput.files[0];
-    const tiktokFile = tiktokInput.files && tiktokInput.files[0];
+    const trafficFile = trafficInput && trafficInput.files && trafficInput.files[0];
+    const tiktokFile = tiktokInput && tiktokInput.files && tiktokInput.files[0];
 
     if (!trafficFile || !tiktokFile) {
       window.alert("Please select both the Trafficking Sheet and Exported TikTok Sheet.");
       return;
     }
 
-    analyzeButton.disabled = true;
-    progress.hidden = false;
+    if (analyzeButton) analyzeButton.disabled = true;
+    if (progress) progress.hidden = false;
 
     window.setTimeout(function () {
       Promise.all([readWorkbook(trafficFile), readWorkbook(tiktokFile)])
@@ -965,8 +999,8 @@ window.setFileLabel = function (input, label) {
           window.alert("File Read Failed: " + (error && error.message ? error.message : "Unknown error"));
         })
         .finally(function () {
-          analyzeButton.disabled = false;
-          progress.hidden = true;
+          if (analyzeButton) analyzeButton.disabled = false;
+          if (progress) progress.hidden = true;
         });
     }, 80);
   }
@@ -977,24 +1011,15 @@ window.setFileLabel = function (input, label) {
     const trafficLabel = document.getElementById("trafficFileName");
     const tiktokLabel = document.getElementById("tiktokFileName");
 
-    function bindFileInput(input, label) {
-      if (!input || !label) return;
-      ["change", "input"].forEach(function (eventType) {
-        input.addEventListener(eventType, function () {
-          window.setFileLabel(input, label);
-        });
-      });
-      input.addEventListener("click", function () {
-        this.value = "";
-      });
-    }
-
     bindFileInput(trafficInput, trafficLabel);
     bindFileInput(tiktokInput, tiktokLabel);
     
     const btnAnalyze = document.getElementById("analyzeButton");
     if (btnAnalyze) btnAnalyze.addEventListener("click", analyze);
     
+    const btnToggleDetails = document.getElementById("toggleDetailsBtn");
+    if (btnToggleDetails) btnToggleDetails.addEventListener("click", toggleDetailsView);
+
     const btnDownload = document.getElementById("downloadButton");
     if (btnDownload) btnDownload.addEventListener("click", downloadReport);
     
