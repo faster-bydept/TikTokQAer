@@ -4,8 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Compare a trafficking sheet with a TikTok Ads export and download a discrepancy report.">
-  <title>TikTok Ads QAer</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <title>TikTok QAer by DEPT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   <script src="script.js" defer></script>
@@ -13,7 +15,9 @@
     :root {
       color-scheme: dark;
       --tiktok-cyan: #00f2fe;
-      --tiktok-red: #ff0050;
+      --tiktok-red: #fe0468;
+      --pink: #fe0468;
+      --teal: #00d1a7;
       --white: #ffffff;
       --muted: #a3b8cc;
       --panel: rgba(6, 12, 24, 0.72);
@@ -21,7 +25,8 @@
       --danger-bg: rgba(255, 0, 80, 0.14);
       --danger-line: rgba(255, 0, 80, 0.45);
       --danger: #ff8aa6;
-      --success: #00d26a;
+      --success: #00d1a7;
+      --font-family: 'Google Sans Flex', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     * { box-sizing: border-box; }
@@ -34,13 +39,13 @@
       margin: 0;
       overflow-x: hidden;
       background: 
-        radial-gradient(circle at 82% 18%, rgba(255, 0, 80, 0.32) 0%, transparent 45%),
-        radial-gradient(circle at 18% 82%, rgba(0, 242, 254, 0.28) 0%, transparent 45%),
+        radial-gradient(circle at 82% 18%, rgba(254, 4, 104, 0.28) 0%, transparent 45%),
+        radial-gradient(circle at 18% 82%, rgba(0, 209, 167, 0.22) 0%, transparent 45%),
         radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.6) 0%, transparent 100%),
         linear-gradient(135deg, #02040a 0%, #0a101d 50%, #12182b 100%);
       background-attachment: fixed;
       color: var(--white);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: var(--font-family);
       letter-spacing: 0;
     }
 
@@ -60,44 +65,55 @@
       padding: 16px 0 48px;
     }
 
+    /* Centered Header */
     .brand {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 14px;
-      margin-top: clamp(28px, 6vh, 58px);
-      margin-bottom: 28px;
-      min-height: 52px;
+      margin-top: clamp(48px, 9vh, 80px);
+      margin-bottom: 36px;
+      text-align: center;
     }
 
-    .brand-logo {
+    .brand-logo-img {
       display: block;
-      width: 40px;
-      height: 46px;
-      overflow: visible;
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 14px rgba(254, 4, 104, 0.35));
     }
 
     .brand-title {
       margin: 0;
-      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
-      font-weight: 850;
+      font-size: clamp(2.4rem, 6vw, 3.6rem);
       line-height: 1;
       letter-spacing: -0.02em;
       display: flex;
-      align-items: center;
+      align-items: baseline;
+      justify-content: center;
       gap: 8px;
     }
 
-    /* "TikTok" in solid pure white */
     .brand-title-main {
       color: #ffffff;
-      font-weight: 850;
+      font-weight: 700;
     }
 
-    /* "QAer" in cyan-to-red gradient */
     .brand-title-accent {
-    
-      font-weight: 850;
+      color: var(--tiktok-red);
+      font-weight: 700;
+    }
+
+    .brand-title-dept {
+      font-weight: 100;
+      font-style: italic;
+      font-size: 0.28em;
+      color: rgba(255, 255, 255, 0.72);
+      text-transform: none;
+      letter-spacing: 0.2em;
+      margin-left: 8px;
     }
 
     main { position: relative; }
@@ -124,7 +140,7 @@
     .main-view {
       display: grid;
       place-items: center;
-      min-height: calc(100vh - 210px);
+      min-height: calc(100vh - 260px);
       padding: 12px 0 60px;
     }
 
@@ -145,14 +161,18 @@
       min-width: 0;
     }
 
+    /* Off-screen accessible file input */
     .file-input {
       position: absolute;
       width: 1px;
       height: 1px;
+      padding: 0;
+      margin: -1px;
       overflow: hidden;
-      clip: rect(0 0 0 0);
-      clip-path: inset(50%);
+      clip: rect(0, 0, 0, 0);
       white-space: nowrap;
+      border: 0;
+      opacity: 0;
     }
 
     .upload-button {
@@ -164,13 +184,18 @@
       min-height: 74px;
       padding: 16px 20px;
       border: 1.5px solid currentColor;
-      border-radius: 10px;
+      border-radius: 12px;
       background: rgba(0, 0, 0, 0.35);
       backdrop-filter: blur(8px);
       font-size: 1rem;
-      font-weight: 720;
+      font-weight: 600;
       cursor: pointer;
       transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    /* Prevents child elements from blocking label click forwarding */
+    .upload-button * {
+      pointer-events: none;
     }
 
     .upload-button:hover {
@@ -196,8 +221,13 @@
       white-space: nowrap;
     }
 
-    .file-name.has-file {
-      color: #00f2fe;
+    .file-name.has-file#trafficFileName {
+      color: var(--tiktok-cyan);
+      font-weight: 600;
+    }
+
+    .file-name.has-file#tiktokFileName {
+      color: var(--tiktok-red);
       font-weight: 600;
     }
 
@@ -205,10 +235,11 @@
       display: grid;
       place-items: center;
       min-height: 74px;
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 0.88rem;
-      font-weight: 800;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.72rem;
+      font-weight: 400;
       text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .analyze-wrap {
@@ -217,7 +248,7 @@
       padding: 1.5px;
       border-radius: 10px;
       background: linear-gradient(90deg, var(--tiktok-cyan), var(--tiktok-red));
-      box-shadow: 0 10px 36px rgba(255, 0, 80, 0.35);
+      box-shadow: 0 10px 32px rgba(254, 4, 104, 0.35);
     }
 
     .analyze-button {
@@ -232,7 +263,7 @@
       border-radius: 9px;
       background: #080d18;
       color: var(--white);
-      font-weight: 780;
+      font-weight: 700;
       cursor: pointer;
       transition: background 180ms ease, transform 180ms ease;
     }
@@ -287,59 +318,93 @@
       animation: progress 1.25s ease-in-out infinite;
     }
 
-    /* Results View Styling with Smaller Fonts & Score Circle Widget */
+    /* Results View Styling */
     .results-view { padding: 24px 0 28px; }
 
     .results-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 20px;
-      padding-bottom: 16px;
+      padding-bottom: 20px;
       border-bottom: 1px solid var(--line);
+    }
+
+    /* Hide divider line when 100% passed */
+    .results-view.no-issues .results-header {
+      border-bottom: none !important;
     }
 
     .results-header-left {
       display: flex;
-      align-items: center;
-      gap: 18px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
     }
 
-    /* Circular Score Badge Widget */
+    .results-title {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+
+    .results-subtitle {
+      max-width: 420px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+
+    .summary-stats {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      margin-top: 2px;
+    }
+
+    .stat { text-align: left; }
+
+    .stat-value {
+      display: block;
+      font-size: 1.2rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .stat-label {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.64rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    /* Top-Right Circular Score Badge */
     .score-circle {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      width: 82px;
-      height: 82px;
-      flex: 0 0 82px;
+      width: 88px;
+      height: 88px;
+      flex: 0 0 88px;
       border-radius: 50%;
       background: rgba(8, 14, 26, 0.88);
-      border: 3.5px solid var(--tiktok-cyan);
-      box-shadow: 0 0 20px rgba(0, 242, 254, 0.25);
+      border: 3.5px solid var(--tiktok-red);
+      box-shadow: 0 0 22px rgba(254, 4, 104, 0.35);
       transition: all 300ms ease;
       text-align: center;
       padding: 4px;
     }
 
-    .score-circle.is-100 {
-      border-color: #00d26a;
-      box-shadow: 0 0 22px rgba(0, 210, 106, 0.35);
-    }
+    .score-circle[hidden] { display: none !important; }
 
-    .score-circle.is-100 .score-icon {
-      color: #00d26a;
-    }
-
-    .score-circle.is-lower {
-      border-color: var(--tiktok-red);
-      box-shadow: 0 0 22px rgba(255, 0, 80, 0.35);
-    }
-
-    .score-circle.is-lower .score-icon {
-      color: var(--tiktok-red);
-    }
+    .score-circle .score-icon { color: var(--tiktok-red); }
 
     .score-icon {
       display: flex;
@@ -356,69 +421,132 @@
     }
 
     .score-value {
-      font-size: 0.92rem;
-      font-weight: 850;
+      font-size: 0.9rem;
+      font-weight: 800;
       line-height: 1;
       letter-spacing: -0.02em;
     }
 
     .score-label {
       font-size: 0.52rem;
-      font-weight: 750;
+      font-weight: 700;
       text-transform: uppercase;
       color: var(--muted);
       margin-top: 3px;
     }
 
-    /* Smaller Title & Subtitle */
-    .results-title {
-      margin: 0;
-      font-size: clamp(1.4rem, 3.5vw, 2.2rem);
-      font-weight: 850;
-      line-height: 0.95;
-      letter-spacing: -0.02em;
-    }
-
-    .results-subtitle {
-      max-width: 420px;
-      margin: 5px 0 0;
-      color: var(--muted);
-      font-size: 0.78rem;
-      line-height: 1.4;
-    }
-
-    .summary-stats {
+    /* Centered 100% Accuracy Stage with Single Static Green Line Ring */
+    .success-stage {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 16px;
-      margin: 0;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 36px 20px;
+      text-align: center;
     }
 
-    .stat { min-width: 58px; text-align: right; }
+    .success-stage[hidden] { display: none !important; }
 
-    .stat-value {
-      display: block;
-      font-size: 1.15rem;
-      font-weight: 800;
+    .hud-wrapper {
+      position: relative;
+      width: 240px;
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .hud-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .hud-center-content {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      user-select: none;
+    }
+
+    .hud-score-number {
+      font-size: 2.7rem;
+      font-weight: 900;
       line-height: 1;
+      letter-spacing: -0.03em;
+      color: var(--teal);
+      text-shadow: none;
     }
 
-    .stat-label {
-      display: block;
-      margin-top: 5px;
-      color: var(--muted);
+    .hud-score-label {
       font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
+      color: var(--teal);
+      margin-top: 6px;
+      text-shadow: none;
     }
 
+    .qa-passed-label {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--teal);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .success-title {
+      margin: 0 0 6px 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    .success-subtitle {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .results-controls {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 16px;
+      margin-bottom: 12px;
+    }
+
+    .results-controls[hidden] { display: none !important; }
+
+    .compact-btn {
+      min-height: 34px;
+      padding: 6px 14px;
+      font-size: 0.78rem;
+      border-color: rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .compact-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Skipped Notice Style: Light Grey Text without Yellow Box */
     .notice {
-      margin: 16px 0 0;
-      padding: 10px 12px;
-      border: 1px solid rgba(255, 199, 78, 0.3);
-      border-radius: 6px;
-      background: rgba(255, 183, 41, 0.09);
-      color: #ffe0a2;
+      margin: 14px 0 0;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: #a3b8cc;
       font-size: 0.76rem;
       line-height: 1.4;
     }
@@ -428,7 +556,6 @@
     .results-list {
       display: grid;
       gap: 12px;
-      margin-top: 20px;
     }
 
     .campaign-group,
@@ -472,8 +599,8 @@
     .summary-name {
       min-width: 0;
       overflow-wrap: anywhere;
-      font-size: 0.84rem;
-      font-weight: 700;
+      font-size: 0.8rem;
+      font-weight: 500;
     }
 
     .summary-count {
@@ -481,7 +608,7 @@
       margin-left: auto;
       color: var(--danger);
       font-size: 0.7rem;
-      font-weight: 700;
+      font-weight: 600;
     }
 
     .group-body {
@@ -500,6 +627,11 @@
       margin: 0;
       padding: 0 12px 12px 28px;
       list-style: none;
+      transition: opacity 180ms ease;
+    }
+
+    .results-list.compact-mode .mismatch-list {
+      display: none !important;
     }
 
     .mismatch-item {
@@ -513,7 +645,7 @@
       font-size: 0.75rem;
     }
 
-    .mismatch-field { color: #ffd6dc; font-weight: 750; font-size: 0.75rem; }
+    .mismatch-field { color: #ffd6dc; font-weight: 600; font-size: 0.75rem; }
 
     .value-block { min-width: 0; }
 
@@ -522,7 +654,7 @@
       margin-bottom: 3px;
       color: var(--muted);
       font-size: 0.6rem;
-      font-weight: 750;
+      font-weight: 600;
       text-transform: uppercase;
     }
 
@@ -536,21 +668,17 @@
     .value-arrow { color: rgba(255, 255, 255, 0.45); font-size: 0.75rem; }
 
     .empty-state {
-      padding: 52px 20px;
-      border-top: 1px solid var(--line);
-      text-align: center;
+      padding: 0;
+      border-top: none;
     }
 
-    .empty-state svg { color: var(--success); }
-
-    .empty-state h2 { margin: 12px 0 5px; font-size: 1.1rem; }
-    .empty-state p { margin: 0; color: var(--muted); font-size: 0.78rem; }
+    .empty-state[hidden] { display: none; }
 
     .actions {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 14px;
+      gap: 12px;
       margin-top: 28px;
     }
 
@@ -566,7 +694,7 @@
       background: transparent;
       color: var(--white);
       font-size: 0.8rem;
-      font-weight: 750;
+      font-weight: 600;
       cursor: pointer;
       transition: background 180ms ease, opacity 180ms ease, transform 180ms ease;
     }
@@ -604,15 +732,12 @@
 
     @media (max-width: 720px) {
       .app-shell { width: min(100% - 28px, 1080px); }
-      .brand { margin-top: 20px; }
+      .brand { margin-top: 32px; }
       .upload-grid { grid-template-columns: 1fr; gap: 8px; }
       .versus { min-height: 30px; }
       .file-name { min-height: 22px; }
       .results-view { padding-top: 20px; }
-      .results-header { align-items: flex-start; flex-direction: column; }
-      .results-header-left { flex-direction: column; align-items: flex-start; gap: 12px; }
-      .summary-stats { justify-content: flex-start; }
-      .stat { text-align: left; }
+      .results-header { align-items: flex-start; }
       .group-body, .adgroup-group .group-body { padding-left: 12px; }
       .mismatch-list { padding-left: 12px; }
       .mismatch-item { grid-template-columns: 1fr; gap: 8px; }
@@ -622,21 +747,22 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="brand" aria-label="TikTok Ads QAer">
-      <svg class="brand-logo" viewBox="-20 -20 488 552" aria-hidden="true">
-        <path fill="#00f2fe" d="M448 209.91a210.06 210.06 0 0 1-122.77-39.25V349.38A162.55 162.55 0 1 1 185 188.31V258.2a92.27 92.27 0 1 0 58.33 86.29V0h69.27a140.7 140.7 0 0 0 2.22 25.33 140.81 140.81 0 0 0 131.18 115.31V209.91z"/>
-        <path fill="#ff0050" d="M325.23 170.66a140.81 140.81 0 0 1-131.18-115.31A140.7 140.7 0 0 1 191.83 30H122.56v344.59A92.27 92.27 0 1 1 64.23 288.3v-69.89a162.55 162.55 0 1 0 178.1 161.42V170.66z" opacity="0.9"/>
-      </svg>
+    
+    <!-- Header -->
+    <header class="brand" aria-label="TikTok QAer by DEPT">
+      <img class="brand-logo-img" src="https://www.freepnglogos.com/uploads/tik-tok-logo-png/tik-tok-tiktok-logo-glitch-toedit-sticker-fly-wall-7.png" alt="TikTok Logo">
       <h1 class="brand-title">
         <span class="brand-title-main">TikTok</span>
         <span class="brand-title-accent">QAer</span>
+        <span class="brand-title-dept">by DEPT</span>
       </h1>
     </header>
 
     <main>
+      <!-- Upload Stage -->
       <section id="mainView" class="view main-view" aria-labelledby="mainHeading">
         <div class="upload-stage">
-          <h2 id="mainHeading" hidden>Upload spreadsheets for TikTok comparison</h2>
+          <h2 id="mainHeading" hidden>Upload spreadsheets for TikTok QA comparison</h2>
           <div class="upload-grid">
             
             <div class="upload-slot">
@@ -675,32 +801,56 @@
         </div>
       </section>
 
+      <!-- Results Stage -->
       <section id="resultsView" class="view results-view" aria-labelledby="resultsHeading" hidden>
         <div class="results-header">
           <div class="results-header-left">
-            <!-- Circular Score Badge -->
-            <div class="score-circle" id="scoreCircle">
-              <div class="score-icon" id="scoreIcon">
-                <i data-lucide="check-circle-2" aria-hidden="true"></i>
-              </div>
-              <div class="score-value" id="scoreValue">100%</div>
-              <div class="score-label" id="scoreLabel">Correct</div>
-            </div>
-
-            <div>
-              <h2 id="resultsHeading" class="results-title">RESULTS</h2>
-              <p id="resultsSubtitle" class="results-subtitle"></p>
+            <h2 id="resultsHeading" class="results-title">RESULTS</h2>
+            <p id="resultsSubtitle" class="results-subtitle"></p>
+            <div class="summary-stats" aria-label="Analysis summary">
+              <div class="stat"><span id="adsChecked" class="stat-value">0</span><span class="stat-label">Ads checked</span></div>
+              <div class="stat"><span id="adsFlagged" class="stat-value">0</span><span class="stat-label">Ads flagged</span></div>
+              <div class="stat"><span id="issueCount" class="stat-value">0</span><span class="stat-label">Issues</span></div>
             </div>
           </div>
 
-          <div class="summary-stats" aria-label="Analysis summary">
-            <div class="stat"><span id="adsChecked" class="stat-value">0</span><span class="stat-label">Ads checked</span></div>
-            <div class="stat"><span id="adsFlagged" class="stat-value">0</span><span class="stat-label">Ads flagged</span></div>
-            <div class="stat"><span id="issueCount" class="stat-value">0</span><span class="stat-label">Issues</span></div>
+          <!-- Top-Right Score Circle Badge -->
+          <div class="score-circle" id="scoreCircle">
+            <div class="score-icon" id="scoreIcon">
+              <i data-lucide="x-circle" aria-hidden="true"></i>
+            </div>
+            <div class="score-value" id="scoreValue">0%</div>
+            <div class="score-label" id="scoreLabel">ISSUES</div>
           </div>
         </div>
 
         <p id="analysisNotice" class="notice" hidden></p>
+
+        <!-- Centered 100% Accuracy Stage with Single Static Green Line Ring -->
+        <div id="successStage" class="success-stage" hidden>
+          <div class="hud-wrapper">
+            <svg class="hud-svg" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="130" cy="130" r="110" fill="none" stroke="var(--teal)" stroke-width="3" />
+            </svg>
+
+            <div class="hud-center-content">
+              <div class="hud-score-number">100%</div>
+              <div class="hud-score-label">ACCURACY</div>
+            </div>
+          </div>
+
+          <div class="qa-passed-label">QA PASSED</div>
+          <h2 class="success-title">No discrepancies detected</h2>
+          <p class="success-subtitle">The compared records passed all TikTok QA checks.</p>
+        </div>
+
+        <div id="resultsControls" class="results-controls" hidden>
+          <button id="toggleDetailsBtn" class="action-button compact-btn" type="button">
+            <i data-lucide="minimize-2" aria-hidden="true"></i>
+            <span id="toggleDetailsText">Compact</span>
+          </button>
+        </div>
+
         <div id="resultsList" class="results-list"></div>
 
         <div class="actions">
